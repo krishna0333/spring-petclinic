@@ -1,0 +1,64 @@
+pipeline {
+    agent {
+        label 'agent1'
+    }
+
+    tools {
+        
+        maven 'MAVEN3'
+    }
+
+    environment {
+        MAVEN_OPTS = "-Dmaven.test.failure.ignore=true"
+    }
+
+    stages {
+
+        stage('Checkout Source Code') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/krishna0333/spring-petclinic.git'
+            }
+        }
+
+        stage('Build JAR using Maven') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Run Unit Tests') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+    }
+
+    post {
+
+        always {
+
+            echo 'Publishing JUnit Test Reports'
+            junit '**/target/surefire-reports/*.xml'
+
+            echo 'Publishing JaCoCo Code Coverage Reports'
+            jacoco(
+                execPattern: '**/target/jacoco.exec',
+                classPattern: '**/target/classes',
+                sourcePattern: '**/src/main/java',
+                exclusionPattern: '**/target/test-classes/**'
+            )
+
+            echo 'Archiving Generated JAR'
+            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+        }
+
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+
+        failure {
+            echo 'Pipeline failed. Please check logs.'
+        }
+    }
+}
