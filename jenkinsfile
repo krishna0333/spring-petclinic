@@ -1,64 +1,36 @@
 pipeline {
     agent {
-        label 'agent1'
+        label 'node1'
     }
 
-    tools {
-        
-        maven 'MAVEN3'
-    }
-
-    environment {
-        MAVEN_OPTS = "-Dmaven.test.failure.ignore=true"
+    parameters {
+        choice(name: 'ENV', choices: ['dev', 'qa', 'prod'], description: 'Select environment')
+        string(name: 'BRANCH', defaultValue: 'main', description: 'muralig')
+        booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Deploy app?')
     }
 
     stages {
 
-        stage('Checkout Source Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
+                git branch: params.BRANCH,
                     url: 'https://github.com/krishna0333/spring-petclinic.git'
             }
         }
 
-        stage('Build JAR using Maven') {
+        stage('Build') {
             steps {
                 sh 'mvn clean package'
             }
         }
 
-        stage('Run Unit Tests') {
-            steps {
-                sh 'mvn test'
+        stage('Deploy') {
+            when {
+                expression { params.DEPLOY }
             }
-        }
-    }
-
-    post {
-
-        always {
-
-            echo 'Publishing JUnit Test Reports'
-            junit '**/target/surefire-reports/*.xml'
-
-            echo 'Publishing JaCoCo Code Coverage Reports'
-            jacoco(
-                execPattern: '**/target/jacoco.exec',
-                classPattern: '**/target/classes',
-                sourcePattern: '**/src/main/java',
-                exclusionPattern: '**/target/test-classes/**'
-            )
-
-            echo 'Archiving Generated JAR'
-            archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
-        }
-
-        success {
-            echo 'Pipeline executed successfully!'
-        }
-
-        failure {
-            echo 'Pipeline failed. Please check logs.'
+            steps {
+                echo "Deploying to ${params.ENV} environment"
+            }
         }
     }
 }
